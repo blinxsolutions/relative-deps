@@ -74,7 +74,33 @@ async function watchRelativeDeps() {
   }
 
   Object.values(relativeDependencies).forEach(path => {
-    fs.watch(path, { recursive: true }, debounce(installRelativeDeps, 500))
+    watchFile(path, { recursive: true }, debounce(installRelativeDeps, 500))
+  });
+}
+
+/**
+ * @see
+ * https://stackoverflow.com/questions/9364514/how-to-watch-symlinked-files-in-node-js-using-watchfile
+ */
+/** Helper for watchFile, also handling symlinks */
+function watchFile(path, opt, callback) {
+  // Check if it's a link
+  fs.lstat(path, function(err, stats) {
+      if(err) {
+          // Handle errors
+          return callback(err);
+      } else if(stats.isSymbolicLink()) {
+          // Read symlink
+          fs.readlink(path, function(err, realPath) {
+              // Handle errors
+              if(err) return callback(err);
+              // Watch the real file
+              fs.watch(realPath, opt, callback);
+          });
+      } else {
+          // It's not a symlink, just watch it
+          fs.watch(path, opt, callback);
+      }
   });
 }
 
